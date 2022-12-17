@@ -1,9 +1,7 @@
 package com.googlecode.aviator.code.asm;
 
-import static java.lang.invoke.MethodType.methodType;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import com.googlecode.aviator.parser.AviatorClassLoader;
 
 /**
@@ -15,7 +13,8 @@ import com.googlecode.aviator.parser.AviatorClassLoader;
 public class ClassDefiner {
 
   private static final Object[] EMPTY_OBJS = new Object[] {};
-  private static MethodHandle DEFINE_CLASS_HANDLE;
+  private static Method DEFINE_CLASS_Method;
+  private static Object unsafe;
 
   static {
     // Try to get defineAnonymousClass method handle.
@@ -24,15 +23,10 @@ public class ClassDefiner {
       if (clazz != null) {
         Field f = clazz.getDeclaredField("theUnsafe");
         f.setAccessible(true);
-        Object unsafe = f.get(null);
-        MethodHandle methodHandle =
-            MethodHandles.lookup().findVirtual(clazz, "defineAnonymousClass",
-                methodType(Class.class, Class.class, byte[].class, Object[].class));
-
-        if (methodHandle != null) {
-          methodHandle = methodHandle.bindTo(unsafe);
-        }
-        DEFINE_CLASS_HANDLE = methodHandle;
+        unsafe = f.get(null);
+        Method defineAnonymousClass = clazz.getDeclaredMethod("defineAnonymousClass", Class.class,
+            byte[].class, Object[].class);
+        DEFINE_CLASS_Method = defineAnonymousClass;
       }
 
     } catch (Throwable e) {
@@ -70,9 +64,10 @@ public class ClassDefiner {
   public static final Class<?> defineClass(final String className, final Class<?> clazz,
       final byte[] bytes, final AviatorClassLoader classLoader)
       throws NoSuchFieldException, IllegalAccessException {
-    if (!preferClassLoader && DEFINE_CLASS_HANDLE != null) {
+    if (!preferClassLoader && DEFINE_CLASS_Method != null) {
       try {
-        Class<?> defineClass = (Class<?>) DEFINE_CLASS_HANDLE.invokeExact(clazz, bytes, EMPTY_OBJS);
+        Class<?> defineClass =
+            (Class<?>) DEFINE_CLASS_Method.invoke(unsafe, clazz, bytes, EMPTY_OBJS);
         return defineClass;
       } catch (Throwable e) {
         // fallback to class loader mode.

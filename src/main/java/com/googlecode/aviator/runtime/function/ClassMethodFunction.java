@@ -1,7 +1,5 @@
 package com.googlecode.aviator.runtime.function;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
@@ -17,9 +15,7 @@ import com.googlecode.aviator.utils.Reflector;
  */
 public class ClassMethodFunction extends AbstractVariadicFunction {
 
-  private static final long serialVersionUID = 5946505010078966461L;
-  private MethodHandle handle; // Only for one-arity function.
-  private Class<?>[] pTypes;
+  private Method method; // Only for one-arity function.
   private final String name;
   private final String methodName;
   private List<Method> methods; // For reflection.
@@ -29,22 +25,14 @@ public class ClassMethodFunction extends AbstractVariadicFunction {
   public ClassMethodFunction(final Class<?> clazz, final boolean isStatic, final String name,
       final String methodName, final List<Method> methods)
       throws IllegalAccessException, NoSuchMethodException {
-    this.name = name;
-    this.clazz = clazz;
-    this.isStatic = isStatic;
+    this.name = name; // String.valueOf
+    this.clazz = clazz; // String
+    this.isStatic = isStatic; // true
     this.methodName = methodName;
 
     if (methods.size() == 1) {
-      // fast path by method handle.
-      this.handle = MethodHandles.lookup().unreflect(methods.get(0)).asFixedArity();
-      this.pTypes = methods.get(0).getParameterTypes();
-      if (!isStatic) {
-        Class<?>[] newTypes = new Class<?>[this.pTypes.length + 1];
-        newTypes[0] = this.clazz;
-        System.arraycopy(this.pTypes, 0, newTypes, 1, this.pTypes.length);
-        this.pTypes = newTypes;
-      }
-      if (this.handle == null) {
+      this.method = methods.get(0);
+      if (this.method == null) {
         throw new NoSuchMethodException("Method handle for " + methodName + " not found");
       }
     } else {
@@ -65,7 +53,7 @@ public class ClassMethodFunction extends AbstractVariadicFunction {
 
     Object target = null;
 
-    if (this.isStatic || this.handle != null) {
+    if (this.isStatic) {
       jArgs = new Object[args.length];
       for (int i = 0; i < args.length; i++) {
         jArgs[i] = args[i].getValue(env);
@@ -82,10 +70,12 @@ public class ClassMethodFunction extends AbstractVariadicFunction {
       }
     }
 
-    if (this.handle != null) {
+    if (this.method != null) {
       try {
-        return FunctionUtils
-            .wrapReturn(this.handle.invokeWithArguments(Reflector.boxArgs(this.pTypes, jArgs)));
+        return FunctionUtils.wrapReturn(this.isStatic
+            ? this.method.invoke(null, Reflector.boxArgs(this.method.getParameterTypes(), jArgs))
+            : this.method.invoke(target,
+                Reflector.boxArgs(this.method.getParameterTypes(), jArgs)));
       } catch (Throwable t) {
         throw Reflector.sneakyThrow(t);
       }
@@ -96,5 +86,4 @@ public class ClassMethodFunction extends AbstractVariadicFunction {
               jArgs));
     }
   }
-
 }
