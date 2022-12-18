@@ -18,8 +18,6 @@ import static com.googlecode.aviator.asm.Opcodes.INVOKESPECIAL;
 import static com.googlecode.aviator.asm.Opcodes.INVOKESTATIC;
 import static com.googlecode.aviator.asm.Opcodes.INVOKEVIRTUAL;
 import static com.googlecode.aviator.asm.Opcodes.RETURN;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
@@ -217,8 +215,7 @@ public class LambdaGenerator implements CodeGenerator {
 
       Constructor<?> constructor =
           defineClass.getConstructor(List.class, Expression.class, Env.class);
-      MethodHandle methodHandle = MethodHandles.lookup().unreflectConstructor(constructor);
-      return new LambdaFunctionBootstrap(this.className, expression, methodHandle, this.arguments,
+      return new LambdaFunctionBootstrap(this.className, expression, constructor, this.arguments,
           this.inheritEnv);
     } catch (Exception e) {
       throw new CompileExpressionErrorException("define lambda class error", e);

@@ -1,6 +1,6 @@
 package com.googlecode.aviator.runtime;
 
-import java.lang.invoke.MethodHandle;
+import java.lang.reflect.Constructor;
 import java.util.List;
 import com.googlecode.aviator.Expression;
 import com.googlecode.aviator.exception.ExpressionRuntimeException;
@@ -19,7 +19,7 @@ public class LambdaFunctionBootstrap {
   // The compiled lambda body expression
   private final Expression expression;
   // The method handle to create lambda instance.
-  private final MethodHandle constructor;
+  private final Constructor<?> constructor;
   // The arguments list.
   private final List<String> arguments;
   private final boolean inheritEnv;
@@ -30,7 +30,7 @@ public class LambdaFunctionBootstrap {
   }
 
   public LambdaFunctionBootstrap(final String name, final Expression expression,
-      final MethodHandle constructor, final List<String> arguments, final boolean inheritEnv) {
+      final Constructor<?> constructor, final List<String> arguments, final boolean inheritEnv) {
     super();
     this.name = name;
     this.expression = expression;
@@ -49,7 +49,7 @@ public class LambdaFunctionBootstrap {
   public LambdaFunction newInstance(final Env env) {
     try {
       final LambdaFunction fn =
-          (LambdaFunction) this.constructor.invoke(this.arguments, this.expression, env);
+          (LambdaFunction) this.constructor.newInstance(this.arguments, this.expression, env);
       fn.setInheritEnv(this.inheritEnv);
       return fn;
     } catch (ExpressionRuntimeException e) {
